@@ -59,55 +59,71 @@
   ;; )
   )
 
-(defun ical2org/parse-event ()
-  "Parse event until END:CALENDAR."
-  (let* ((lines  '())
-         (current-line (ical2org/read-line)))
-    (while (not (string-prefix-p "END" current-line))
-      (setq current-line (ical2org/read-line))
+(defun ical2org/parse-event-entry (KEY END)
+  (save-excursion
+    (cons
+     (progn (search-forward KEY END)
+            (forward-char)
+            (point))
+     (progn (while (progn (forward-line) (beginning-of-line) (eq (char-after) 32) )
+              (end-of-line))
+            (point))))
+  )
 
+(defun printContent (RANGE)
+  (message (buffer-substring (car RANGE) (cdr RANGE))))
 
-      ;; (when (string-prefix-p "SUMMARY" current-line)
-      ;;   (push (cons 'summary (ical2org/read-line-value)) lines))
+(defun ical2org/parse-event (START END)
+  "Parse event entries between START and END points."
+  (save-excursion
+    ;; (message (buffer-substring START END))
+    (let ((description (ical2org/parse-event-entry "DESCRIPTION" END))
+          (summary (ical2org/parse-event-entry "SUMMARY" END)))
 
-      (let (
-            (value
-             (cond ((string-prefix-p "SUMMARY" current-line)
-                    (cons 'summary (ical2org/read-line-after "=")))
-
-                   ((string-prefix-p "DTSTART" current-line)
-                    (cons 'start-time (ical2org/read-line-after ":")))
-                   ;; (t (cons 'test current-line))
-                   (t nil)
-                   )))
-
-        (when value
-          (push value lines)
-          )
-        )
-
-
-      (forward-line)
+      ;; (message (buffer-substring (car summary) (cdr summary)))
+      ;; (message (buffer-substring (car description) (cdr description)))
+      (printContent summary)
+      (printContent description)
       )
-    lines
+    "test"
     )
   )
 
+(defun ical2org/next-vevent ()
+  (save-excursion
+    (let ((start  (progn (search-forward "BEGIN:VEVENT" ) (beginning-of-line) (point) ) )
+          (end (progn (search-forward "END:VEVENT" nil t) (end-of-line) (point))))
+      (if (and start end)
+          (list start end)
+        (message "hkkk"))
+      )))
+
 (defun ical2org/callback (calendar callback)
-  (message "callback %s" (ical2org/calendar-name calendar))
+  ;; (message "callback %s" (ical2org/calendar-name calendar))
   ;; (let ((ical-buffer (current-buffer)))
   ;;   (switch-to-buffer ical-buffer)
   ;;   )
   (with-current-buffer
       (current-buffer)
-    (search-forward "BEGIN:VEVENT")
-    (forward-line)
+    ;; (switch-to-buffer (current-buffer))
+    (beginning-of-buffer)
+
+    ;; (message (car (ical2org/next-vevent) ))
+    ;; (message "pos %d" (search-forward "BEGIN:VEVENT" ) )
+    ;; (beginning-of-line)
+    ;; (message (ical2org/read-line))
+    ;; (message "start")
+    ;; (message (ical2org/next-vevent))
+    ;; (message "end")
+    (apply 'ical2org/parse-event (ical2org/next-vevent))
+    ;; (search-forward "BEGIN:VEVENT")
+    ;; (forward-line)
 
     ;; (message (buffer-substring (point) (line-end-position)))
-    (let ((entry (ical2org/parse-event)))
-      (message "hello")
-      (message (cdr (assoc 'summary entry)))
-      (message (cdr (assoc 'start-time entry))))
+    ;; (let ((entry (ical2org/parse-event)))
+    ;;   (message "hello")
+    ;;   (message (cdr (assoc 'summary entry)))
+    ;;   (message (cdr (assoc 'start-time entry))))
     )
   ;; (switch-to-buffer (current-buffer))
   )
