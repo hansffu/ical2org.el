@@ -52,11 +52,11 @@
 
 (defun ical2org/read-line-after (SEPARATOR)
   "Read what comes after SEPARATOR on current line."
-  (save-excursion
-    (line-beginning-position)
-    (search-forward SEPARATOR)
-    (buffer-substring (point)(line-end-position))
-    )
+  ;; (save-excursion
+  (line-beginning-position)
+  (search-forward SEPARATOR)
+  (buffer-substring (point)(line-end-position))
+  ;; )
   )
 
 (defun ical2org/parse-event ()
@@ -66,24 +66,23 @@
     (while (not (string-prefix-p "END" current-line))
       (setq current-line (ical2org/read-line))
 
+
       ;; (when (string-prefix-p "SUMMARY" current-line)
       ;;   (push (cons 'summary (ical2org/read-line-value)) lines))
 
       (let (
-            (value (cond
-                    ((string-prefix-p "SUMMARY" current-line)
-                     (cons 'summary (ical2org/read-line-after "=")) lines)
+            (value
+             (cond ((string-prefix-p "SUMMARY" current-line)
+                    (cons 'summary (ical2org/read-line-after "=")))
 
-                    ((string-prefix-p "DTSTART" current-line)
-                     (cons 'start-time (ical2org/read-line-after ":")) lines)
-                    (t nil)
-                    )))
+                   ((string-prefix-p "DTSTART" current-line)
+                    (cons 'start-time (ical2org/read-line-after ":")))
+                   ;; (t (cons 'test current-line))
+                   (t nil)
+                   )))
 
-        (if value
-            (progn
-              (message value)
-              (push value lines))
-          (message value)
+        (when value
+          (push value lines)
           )
         )
 
@@ -107,7 +106,6 @@
     ;; (message (buffer-substring (point) (line-end-position)))
     (let ((entry (ical2org/parse-event)))
       (message "hello")
-      (message entry)
       (message (cdr (assoc 'summary entry)))
       (message (cdr (assoc 'start-time entry))))
     )
