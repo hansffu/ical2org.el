@@ -22,7 +22,7 @@
 (require 'cl-lib)
 (require 'dash)
 (require 'url)
-
+;;;;;;;;;Configuration;;;;;;;;;;;
 (cl-defstruct ical2org/calendar
   name
   url
@@ -38,7 +38,15 @@
   :type 'list
   :group 'ical2org)
 
-
+;;;;;;;;;Implementation;;;;;;;;;;
+(cl-defstruct ical2org/event
+  summary
+  description
+  date
+  status
+  attendees
+  organizer
+  )
 
 
 (defun ical2org/read-line ()
@@ -54,7 +62,7 @@
     )
   )
 
-(defun ical2org/get-event-entry-location-value (KEY START END)
+(defun ical2org/get-event-entry-value-location (KEY START END)
   "Search within START and END locations for the specified KEY and return points for the value."
   (save-excursion
     (goto-char START)
@@ -71,22 +79,19 @@
   (message (buffer-substring (car RANGE) (cdr RANGE))))
 
 (defun ical2org/parse-event (START END)
-  "Parse event entries between START and END points."
+  "Parse event entries between START and END points. Return struct `ical2org/event'."
   (save-excursion
-    (let ((description (ical2org/get-event-entry-location-value "DESCRIPTION" START END))
-          (summary (ical2org/get-event-entry-location-value "SUMMARY" START END)))
-
-      (printContent summary)
-      )
-    "test"
-    )
-  )
+    (let ((description (ical2org/get-event-entry-value-location "DESCRIPTION" START END))
+          (summary (ical2org/get-event-entry-value-location "SUMMARY" START END)))
+      (make-ical2org/event
+       :summary (buffer-substring (car summary) (cdr summary))
+       :description (buffer-substring (car description) (cdr description))))))
 
 (defun ical2org/next-vevent ()
   "Returt start and end points for the next event in buffer."
   (save-excursion
     (condition-case nil
-        (cons (progn (search-forward "BEGIN:VEVENT" ) (beginning-of-line) (point) )
+        (cons (progn (search-forward "BEGIN:VEVENT") (beginning-of-line) (point) )
               (progn (search-forward "END:VEVENT") (end-of-line) (point)))
       (error nil)
       )))
@@ -106,14 +111,30 @@
   "Extract ical data from buffer."
   (with-current-buffer
       (current-buffer)
+    ;; (switch-to-buffer (current-buffer))
     (goto-char (point-min))
     (--map (ical2org/parse-event (car it) (cdr it))
            (ical2org/find-vevents))))
 
+(defun ical2org/write-event (event)
+  "Write EVENT in org format."
+  (insert (format "* TODO %s\n" (ical2org/event-summary event)))
+  (insert (format (ical2org/event-description event)))
+  )
+
+(defun ical2org/write-events (events)
+  (with-current-buffer
+      (create-file-buffer "/tmp/test.org")
+    (org-mode)
+    (-map #'ical2org/write-event events)
+
+    (switch-to-buffer (current-buffer))
+    ))
 
 (defun ical2org/callback (calendar callback)
   (let ((events (ical2org/parse-buffer)))
     ;; (message events)
+    (ical2org/write-events events)
     )
   )
 
