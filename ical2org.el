@@ -40,11 +40,6 @@
 
 
 
-(defun ical2org/import-calendar (calendar)
-  "Fetch calendars defined in CALENDAR."
-  (url-retrieve (ical2org/calendar-url calendar)
-                (apply-partially #'ical2org/callback calendar))
-  )
 
 (defun ical2org/read-line ()
   "Return entire line as string."
@@ -96,33 +91,57 @@
       (error nil)
       )))
 
-(defun ical2org/callback (calendar callback)
-  (with-current-buffer
-      (current-buffer)
-
-    ;; (switch-to-buffer (current-buffer))
-
-    (beginning-of-buffer)
-
+(defun ical2org/find-vevents ()
+  "Returt start and end points for all events in buffer."
+  (save-excursion
     (let ((events '())
           (last-event (ical2org/next-vevent)))
       (while last-event
         (push last-event events)
-        ;; (message last-event)
-        (message "event %d %d" (car last-event) (cdr last-event))
         (goto-char (cdr last-event))
-        (setq last-event (ical2org/next-vevent))
-        )
-      (--map (ical2org/parse-event (car it) (cdr it)) events)
-      )
+        (setq last-event (ical2org/next-vevent)))
+      events)))
 
+(defun ical2org/parse-buffer ()
+  "Extract ical data from buffer."
+  (with-current-buffer
+      (current-buffer)
+    (goto-char (point-min))
+    (--map (ical2org/parse-event (car it) (cdr it))
+           (ical2org/find-vevents))))
+
+
+(defun ical2org/callback (calendar callback)
+  (let ((events (ical2org/parse-buffer)))
+    ;; (message events)
     )
   )
+
+(defun ical2org/import-calendar (calendar)
+  "Fetch calendars defined in CALENDAR."
+  (url-retrieve (ical2org/calendar-url calendar)
+                (apply-partially #'ical2org/callback calendar)))
 
 (defun ical2org/import ()
   "Fetch calendars defined in `ical2org/calendars'."
   (interactive)
-  (-map #'ical2org/import-calendar ical2org/calendars))
+
+  ;; (with-current-buffer
+  ;;     (create-file-buffer "/tmp/test.org")
+  ;;   (org-mode)
+  ;;   (insert "* Events\n")
+  ;;   (beginning-of-buffer)
+
+  ;;   (org-element-adopt-elements
+  ;;    (org-element-at-point)
+  ;;    (org-element-create 'headline '(:level 1 :title "test"))
+  ;;    )
+  ;;   (switch-to-buffer (current-buffer))
+  ;;   )
+
+
+  (-map #'ical2org/import-calendar ical2org/calendars)
+  )
 
 (provide 'ical2org)
 ;;; ical2org.el ends here
