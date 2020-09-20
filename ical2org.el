@@ -3,7 +3,6 @@
 ;; Copyright (C) 2020 Hans Fredrik Furholt
 ;;
 ;; Author: Hans Fredrik Furholt <http://github/hansffu>
-;; Maintainer: Hans Fredrik Furholt <hansff@gmail.com>
 ;; Created: September 17, 2020
 ;; Modified: September 17, 2020
 ;; Version: 0.0.1
@@ -23,6 +22,8 @@
 (require 'dash)
 (require 'url)
 (require 's)
+(require 'org)
+(require 'ts)
 
 ;;;;;;;;;Configuration;;;;;;;;;;;
 (cl-defstruct ical2org/calendar
@@ -68,14 +69,16 @@
   "Search within START and END locations for the specified KEY and return points for the value."
   (save-excursion
     (goto-char START)
-    (cons
-     (progn (search-forward KEY END)
-            (forward-char)
-            (point))
-     (progn (while (progn (forward-line) (beginning-of-line) (eq (char-after) 32) )
-              (end-of-line))
-            (point))))
-  )
+    (condition-case nil
+        (cons
+         (progn (search-forward KEY END)
+                (forward-char)
+                (point))
+         (progn (while (progn (forward-line) (beginning-of-line) (eq (char-after) 32) )
+                  (end-of-line))
+                (point)))
+      (error nil))
+    ))
 
 (defun printContent (RANGE)
   (message (buffer-substring (car RANGE) (cdr RANGE))))
@@ -84,7 +87,17 @@
   "Parse event entries between START and END points. Return struct `ical2org/event'."
   (save-excursion
     (let ((description (ical2org/get-event-entry-value-location "DESCRIPTION" START END))
-          (summary (ical2org/get-event-entry-value-location "SUMMARY" START END)))
+          (summary (ical2org/get-event-entry-value-location "SUMMARY" START END))
+          (start-time (ical2org/get-event-entry-value-location "DTSTART" START END))
+          (end-time (ical2org/get-event-entry-value-location "DTEND" START END))
+          )
+
+      (message (printContent summary))
+      (when start-time
+        (message "start: %s" (buffer-substring (car start-time) (cdr start-time))) )
+      (when end-time
+        (message "end: %s" (buffer-substring (car end-time) (cdr end-time))) )
+
       (make-ical2org/event
        :summary (buffer-substring (car summary) (cdr summary))
        :description (buffer-substring (car description) (cdr description))))))
@@ -125,6 +138,25 @@
                    ("\\," . ","))
                  text))
 
+(defun ical2org/format-timestamp (dtstart dtend rrule)
+  (let* (
+         (rules-alist (when rrule (--map (s-split "=" it) (s-split ";" rrule)) ))
+         (frequency (when rules-alist (assoc "FREQ" rules-alist)))
+         (repeat-frequency (when (s-equals? "WEEKLY" (cadr frequency)) "+1w"))
+         )
+
+    ;; (message rules-alist)
+    (message (cadr (assoc "FREQ" rules-alist) ) )
+    (message "SHEDULED <%s--%s %s>"
+             (format-time-string (cdr org-time-stamp-formats) (parse-iso8601-time-string dtstart))
+             (format-time-string (cdr org-time-stamp-formats) (parse-iso8601-time-string dtend))
+             repeat-frequency
+             )
+    ;; (message (format-time-string (cdr org-time-stamp-formats) parsed) )
+    ;; (message (org-time-stamp-format parsed) )
+    )
+  )
+
 (defun ical2org/write-event (event)
   "Write EVENT in org format."
   (insert (format "* TODO %s\n" (ical2org/clean-text (ical2org/event-summary event) )))
@@ -152,7 +184,15 @@
 (defun ical2org/import ()
   "Fetch calendars defined in `ical2org/calendars'."
   (interactive)
-  (-map #'ical2org/import-calendar ical2org/calendars))
+  (ical2org/format-timestamp
+   "20200924T150000Z"
+   "20200924T150000Z"
+   nil
+   ;; "FREQ=WEEKLY;UNTIL=20210319T080000Z;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR;WKST=SU"
+   )
+  (message (ts-format (ts-parse "TZID=Romance Standard Time:20200622T090000") ))
+  ;; (-map #'ical2org/import-calendar ical2org/calendars)
+  )
 
 (provide 'ical2org)
 ;;; ical2org.el ends here
