@@ -22,6 +22,8 @@
 (require 'cl-lib)
 (require 'dash)
 (require 'url)
+(require 's)
+
 ;;;;;;;;;Configuration;;;;;;;;;;;
 (cl-defstruct ical2org/calendar
   name
@@ -116,10 +118,17 @@
     (--map (ical2org/parse-event (car it) (cdr it))
            (ical2org/find-vevents))))
 
+(defun ical2org/clean-text (text)
+  "Clean TEXT from escape characters and multiline strings."
+  (s-replace-all '(("\n " . "")
+                   ("\\n" . "\n")
+                   ("\\," . ","))
+                 text))
+
 (defun ical2org/write-event (event)
   "Write EVENT in org format."
-  (insert (format "* TODO %s\n" (ical2org/event-summary event)))
-  (insert (format (ical2org/event-description event)))
+  (insert (format "* TODO %s\n" (ical2org/clean-text (ical2org/event-summary event) )))
+  (insert (format (ical2org/clean-text (ical2org/event-description event) )))
   )
 
 (defun ical2org/write-events (calendar events)
