@@ -122,47 +122,28 @@
   (insert (format (ical2org/event-description event)))
   )
 
-(defun ical2org/write-events (events)
+(defun ical2org/write-events (calendar events)
+  "Write parsed EVENTS to org-file given in CALENDAR."
   (with-current-buffer
-      (create-file-buffer "/tmp/test.org")
+      (create-file-buffer (ical2org/calendar-org-file calendar))
     (org-mode)
     (-map #'ical2org/write-event events)
 
-    (switch-to-buffer (current-buffer))
-    ))
-
-(defun ical2org/callback (calendar callback)
-  (let ((events (ical2org/parse-buffer)))
-    ;; (message events)
-    (ical2org/write-events events)
-    )
-  )
+    (switch-to-buffer (current-buffer))))
 
 (defun ical2org/import-calendar (calendar)
   "Fetch calendars defined in CALENDAR."
-  (url-retrieve (ical2org/calendar-url calendar)
-                (apply-partially #'ical2org/callback calendar)))
+  (let* ((events (with-temp-buffer
+                   (url-insert-file-contents
+                    (ical2org/calendar-url calendar))
+                   (ical2org/parse-buffer))
+                 ))
+    (ical2org/write-events calendar events)))
 
 (defun ical2org/import ()
   "Fetch calendars defined in `ical2org/calendars'."
   (interactive)
-
-  ;; (with-current-buffer
-  ;;     (create-file-buffer "/tmp/test.org")
-  ;;   (org-mode)
-  ;;   (insert "* Events\n")
-  ;;   (beginning-of-buffer)
-
-  ;;   (org-element-adopt-elements
-  ;;    (org-element-at-point)
-  ;;    (org-element-create 'headline '(:level 1 :title "test"))
-  ;;    )
-  ;;   (switch-to-buffer (current-buffer))
-  ;;   )
-
-
-  (-map #'ical2org/import-calendar ical2org/calendars)
-  )
+  (-map #'ical2org/import-calendar ical2org/calendars))
 
 (provide 'ical2org)
 ;;; ical2org.el ends here
