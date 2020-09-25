@@ -8,7 +8,7 @@
 ;; Version: 0.0.1
 ;; Keywords:
 ;; Homepage: https://github.com/hansffu/ical2org
-;; Package-Requires: ((emacs 28.0.50) (cl-lib "0.5"))
+;; Package-Requires: ((cl-lib "0.5") (dash "2.17.0") (s "1.12.0") (ts "0.2"))
 ;;
 ;; This file is not part of GNU Emacs.
 ;;
@@ -24,6 +24,7 @@
 (require 's)
 (require 'org)
 (require 'ts)
+(require 'parse-time)
 
 ;;;;;;;;;Configuration;;;;;;;;;;;
 (cl-defstruct ical2org/calendar
@@ -138,20 +139,38 @@
                    ("\\," . ","))
                  text))
 
+
 (defun ical2org/format-timestamp (dtstart dtend rrule)
+  "Format as org time range. DTSTART and DTEND specifies start and end times. RRULE specifies repeat rules."
   (let* (
+         (same-day-p (lambda (d1 d2) (and
+                                      (eq (ts-day d1) (ts-day d2))
+                                      (eq (ts-month d1) (ts-month d2))
+                                      (eq (ts-year d1) (ts-year d2)))))
+         (start (ts-parse dtstart))
+         (end (ts-parse dtend))
          (rules-alist (when rrule (--map (s-split "=" it) (s-split ";" rrule)) ))
          (frequency (when rules-alist (assoc "FREQ" rules-alist)))
          (repeat-frequency (when (s-equals? "WEEKLY" (cadr frequency)) "+1w"))
          )
 
+    (cond ((funcall same-day-p start end)
+           (format "<%s %s-%s>"
+                   (ts-format "%Y-%m-%d %a" start)
+                   (ts-format "%H:%M" start)
+                   (ts-format "%H:%M" end)))
+          (t (format "%s--%s"
+                   (ts-format (cdr org-time-stamp-formats) start)
+                   (ts-format (cdr org-time-stamp-formats) end)))
+          )
+
     ;; (message rules-alist)
-    (message (cadr (assoc "FREQ" rules-alist) ) )
-    (message "SHEDULED <%s--%s %s>"
-             (format-time-string (cdr org-time-stamp-formats) (parse-iso8601-time-string dtstart))
-             (format-time-string (cdr org-time-stamp-formats) (parse-iso8601-time-string dtend))
-             repeat-frequency
-             )
+    ;; (message (cadr (assoc "FREQ" rules-alist) ) )
+    ;; (message "SHEDULED <%s--%s %s>"
+    ;;          (format-time-string (cdr org-time-stamp-formats) (parse-iso8601-time-string dtstart))
+    ;;          (format-time-string (cdr org-time-stamp-formats) (parse-iso8601-time-string dtend))
+    ;;          repeat-frequency
+    ;;          )
     ;; (message (format-time-string (cdr org-time-stamp-formats) parsed) )
     ;; (message (org-time-stamp-format parsed) )
     )
@@ -195,4 +214,5 @@
   )
 
 (provide 'ical2org)
+
 ;;; ical2org.el ends here
