@@ -22,14 +22,23 @@
       )
      :to-equal "<2020-09-24 Thu 16:00>--<2020-09-25 Fri 16:15>")
     )
-  ;; (it "It should add +1w if frequency is weekly"
-  ;;   (expect
-  ;;    (ical2org/format-timestamp
-  ;;     "20200924T140000Z"
-  ;;     "20200924T141500Z"
-  ;;     "FREQ:WEEKLY"
-  ;;     )
-  ;;    :to-equal '("<2020-09-24 Thu 16:00-16:15 +1w>"))
-  ;;   )
-
+  (it "It should add +1w if frequency is weekly"
+    (expect
+     (ical2org/format-timestamp
+      "20200924T140000Z"
+      "20200924T141500Z"
+      ";FREQ=WEEKLY"
+      )
+     :to-equal "<2020-09-24 Thu 16:00-16:15 +1w>")
+    )
+  (it "should repeat every day defined in byday"
+    ;; (expect
+     (ical2org/format-timestamp
+      "20200924T140000Z"
+      "20200924T141500Z"
+      ";FREQ=WEEKLY;BYDAY=MO,WE,TH,SU"
+      )
+     ;; :to-equal
+     ;; "<2020-09-24 Thu 16:00-16:15 +1w><2020-09-27 Sun 16:00-16:15 +1w><2020-09-28 Mon 16:00-16:15 +1w><2020-09-29 Tue 16:00-16:15 +1w>")
+    )
   )

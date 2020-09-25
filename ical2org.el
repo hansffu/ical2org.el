@@ -149,20 +149,33 @@
                                       (eq (ts-year d1) (ts-year d2)))))
          (start (ts-parse dtstart))
          (end (ts-parse dtend))
+
          (rules-alist (when rrule (--map (s-split "=" it) (s-split ";" rrule)) ))
+
          (frequency (when rules-alist (assoc "FREQ" rules-alist)))
-         (repeat-frequency (when (s-equals? "WEEKLY" (cadr frequency)) "+1w"))
+         (repeat-frequency (if (s-equals? "WEEKLY" (cadr frequency)) " +1w" ""))
+
+         (byday (when rules-alist (assoc "BYDAY" rules-alist)))
+         (days (when byday  (--map it
+                                   (s-split "," (cadr byday) ) )))
          )
+    (when days (message "%d"
+                (pcase (car days)
+                  ("MO" 1)
+                  ("TU" 2)
+                  )
+                ) )
 
     (cond ((funcall same-day-p start end)
-           (format "<%s %s-%s>"
+           (format "<%s %s-%s%s>"
                    (ts-format "%Y-%m-%d %a" start)
                    (ts-format "%H:%M" start)
-                   (ts-format "%H:%M" end)))
+                   (ts-format "%H:%M" end)
+                   repeat-frequency))
           (t (format "%s--%s"
-                   (ts-format (cdr org-time-stamp-formats) start)
-                   (ts-format (cdr org-time-stamp-formats) end)))
-          )
+                     (ts-format (cdr org-time-stamp-formats) start)
+                     (ts-format (cdr org-time-stamp-formats) end)
+                     )))
 
     ;; (message rules-alist)
     ;; (message (cadr (assoc "FREQ" rules-alist) ) )
