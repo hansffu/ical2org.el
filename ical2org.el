@@ -139,6 +139,34 @@
                    ("\\," . ","))
                  text))
 
+(defun ical2org/get-next-by-dow (current dow)
+  "Find next date after CURRENT wher day of week is DOW."
+  (let* ((cur-dow (ts-dow current))
+         (dow-num (pcase dow
+                    ("MO" 1)
+                    ("TU" 2)
+                    ("WE" 3)
+                    ("TH" 4)
+                    ("FR" 5)
+                    ("SA" 6)
+                    ("SU" 7)))
+         ;; (day-diff (- dow-num cur-dow))
+         )
+    ;; (message "cur: %d  --  next: %d" cur-dow dow-num)
+    (message "cur: %d  -- next: %d" cur-dow dow-num)
+    (message "diff: %d" (- dow-num cur-dow))
+    (message "next: %d"
+             (if (> cur-dow dow-num)
+                 (+ 7 (- dow-num cur-dow))
+               (- dow-num cur-dow))
+             )
+    (ts-inc 'day
+            (if (> cur-dow dow-num)
+                (+ 7 (- dow-num cur-dow))
+              (- dow-num cur-dow))
+            current)
+    )
+  )
 
 (defun ical2org/format-timestamp (dtstart dtend rrule)
   "Format as org time range. DTSTART and DTEND specifies start and end times. RRULE specifies repeat rules."
@@ -156,15 +184,22 @@
          (repeat-frequency (if (s-equals? "WEEKLY" (cadr frequency)) " +1w" ""))
 
          (byday (when rules-alist (assoc "BYDAY" rules-alist)))
-         (days (when byday  (--map it
+         (days (when byday  (--map (pcase it
+                                     ("MO" 1)
+                                     ("TU" 2)
+                                     ("WE" 3)
+                                     ("TH" 4)
+                                     ("FR" 5)
+                                     ("SA" 6)
+                                     ("SU" 7)
+                                     )
                                    (s-split "," (cadr byday) ) )))
          )
-    (when days (message "%d"
-                (pcase (car days)
-                  ("MO" 1)
-                  ("TU" 2)
-                  )
-                ) )
+    (when days (message
+                (ts-format (car org-time-stamp-formats)
+                           (ts-inc 'day 2 (ts-now))
+                           ;; (ts-now)
+                           )))
 
     (cond ((funcall same-day-p start end)
            (format "<%s %s-%s%s>"
