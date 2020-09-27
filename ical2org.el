@@ -143,26 +143,38 @@
   "Find next date after CURRENT wher day of week is DOW."
   (let* ((cur-dow (ts-dow current))
          (dow-num (pcase dow
-                    ("MO" 1)
-                    ("TU" 2)
-                    ("WE" 3)
-                    ("TH" 4)
-                    ("FR" 5)
-                    ("SA" 6)
-                    ("SU" 7))))
+                    ("MO" 1) ("TU" 2) ("WE" 3) ("TH" 4)
+                    ("FR" 5) ("SA" 6) ("SU" 7))))
     (ts-inc 'day
             (if (> cur-dow dow-num)
                 (+ 7 (- dow-num cur-dow))
               (- dow-num cur-dow))
             current)))
 
+(defun ical2org/same-date-p (d1 d2)
+  "Check if D1 and D2 is the same date."
+  (and
+   (eq (ts-day d1) (ts-day d2))
+   (eq (ts-month d1) (ts-month d2))
+   (eq (ts-year d1) (ts-year d2))))
+
+(defun ical2org/format-event-timestamp (start end repeat-frequency)
+  "Format event schedule from START to END with with REPEAT-FREQUENCY."
+  (if (ical2org/same-date-p start end)
+      (format "<%s %s-%s%s>"
+              (ts-format "%Y-%m-%d %a" start)
+              (ts-format "%H:%M" start)
+              (ts-format "%H:%M" end)
+              repeat-frequency)
+    (format "%s--%s"
+            (ts-format (cdr org-time-stamp-formats) start)
+            (ts-format (cdr org-time-stamp-formats) end)
+            )))
+
 (defun ical2org/format-timestamp (dtstart dtend rrule)
   "Format as org time range. DTSTART and DTEND specifies start and end times. RRULE specifies repeat rules."
   (let* (
-         (same-day-p (lambda (d1 d2) (and
-                                      (eq (ts-day d1) (ts-day d2))
-                                      (eq (ts-month d1) (ts-month d2))
-                                      (eq (ts-year d1) (ts-year d2)))))
+
          (start (ts-parse dtstart))
          (end (ts-parse dtend))
 
@@ -172,43 +184,20 @@
          (repeat-frequency (if (s-equals? "WEEKLY" (cadr frequency)) " +1w" ""))
 
          (byday (when rules-alist (assoc "BYDAY" rules-alist)))
-         (days (when byday  (--map (pcase it
-                                     ("MO" 1)
-                                     ("TU" 2)
-                                     ("WE" 3)
-                                     ("TH" 4)
-                                     ("FR" 5)
-                                     ("SA" 6)
-                                     ("SU" 7)
-                                     )
+         (days (when byday  (--map (cons (ical2org/get-next-by-dow start it)
+                                         (ical2org/get-next-by-dow end it))
                                    (s-split "," (cadr byday) ) )))
          )
-    (when days (message
-                (ts-format (car org-time-stamp-formats)
-                           (ts-inc 'day 2 (ts-now))
-                           ;; (ts-now)
-                           )))
 
-    (cond ((funcall same-day-p start end)
-           (format "<%s %s-%s%s>"
-                   (ts-format "%Y-%m-%d %a" start)
-                   (ts-format "%H:%M" start)
-                   (ts-format "%H:%M" end)
-                   repeat-frequency))
-          (t (format "%s--%s"
-                     (ts-format (cdr org-time-stamp-formats) start)
-                     (ts-format (cdr org-time-stamp-formats) end)
-                     )))
+    (if days
+        (--reduce
+         (progn
+           (message (ical2org/format-event-timestamp (car it) (cdr it) nil))
+           (format "%s-%s" acc (ical2org/format-event-timestamp (car it) (cdr it) nil)) )
+         days)
+      (ical2org/format-event-timestamp start end repeat-frequency)
+      )
 
-    ;; (message rules-alist)
-    ;; (message (cadr (assoc "FREQ" rules-alist) ) )
-    ;; (message "SHEDULED <%s--%s %s>"
-    ;;          (format-time-string (cdr org-time-stamp-formats) (parse-iso8601-time-string dtstart))
-    ;;          (format-time-string (cdr org-time-stamp-formats) (parse-iso8601-time-string dtend))
-    ;;          repeat-frequency
-    ;;          )
-    ;; (message (format-time-string (cdr org-time-stamp-formats) parsed) )
-    ;; (message (org-time-stamp-format parsed) )
     )
   )
 
