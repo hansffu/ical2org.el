@@ -149,24 +149,12 @@
                     ("TH" 4)
                     ("FR" 5)
                     ("SA" 6)
-                    ("SU" 7)))
-         ;; (day-diff (- dow-num cur-dow))
-         )
-    ;; (message "cur: %d  --  next: %d" cur-dow dow-num)
-    (message "cur: %d  -- next: %d" cur-dow dow-num)
-    (message "diff: %d" (- dow-num cur-dow))
-    (message "next: %d"
-             (if (> cur-dow dow-num)
-                 (+ 7 (- dow-num cur-dow))
-               (- dow-num cur-dow))
-             )
+                    ("SU" 7))))
     (ts-inc 'day
             (if (> cur-dow dow-num)
                 (+ 7 (- dow-num cur-dow))
               (- dow-num cur-dow))
-            current)
-    )
-  )
+            current)))
 
 (defun ical2org/format-timestamp (dtstart dtend rrule)
   "Format as org time range. DTSTART and DTEND specifies start and end times. RRULE specifies repeat rules."
