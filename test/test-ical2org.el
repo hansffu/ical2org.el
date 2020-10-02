@@ -41,9 +41,10 @@
         ";FREQ=WEEKLY;BYDAY=MO,WE,TH,SU"
         )
        :to-equal
-       "<2020-09-24 Thu 16:00-16:15 +1w><2020-09-27 Sun 16:00-16:15 +1w><2020-09-28 Mon 16:00-16:15 +1w><2020-09-29 Tue 16:00-16:15 +1w>")
+       "<2020-09-28 Mon 16:00-16:15 +1w><2020-09-30 Wed 16:00-16:15 +1w><2020-09-24 Thu 16:00-16:15 +1w><2020-09-27 Sun 16:00-16:15 +1w>")
       )
     )
+
   (describe "ical2org/get-next-by-dow"
     (it "should return same day when dow is current day"
       (let ((result (ical2org/get-next-by-dow (ts-parse-org "<2020-09-28 Mon>") "MO")))
@@ -64,4 +65,5 @@
          (ts-format (car org-time-stamp-formats) result)
          :to-equal "<2020-09-29 Tue>")))
     )
+ 
   )

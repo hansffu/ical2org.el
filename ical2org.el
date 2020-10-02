@@ -171,12 +171,25 @@
             (ts-format (cdr org-time-stamp-formats) end)
             )))
 
+(defsubst ical2org/parse-timestamp (string)
+  "Return new `ts' struct, parsing STRING with `iso8601-parse'."
+  (let ((parsed (iso8601-parse string)))
+    ;; Fill nil values
+    (cl-loop for i from 0 to 5
+             when (null (nth i parsed))
+             do (setf (nth i parsed) 0))
+    (->> parsed
+         (apply #'encode-time)
+         float-time
+         (make-ts :unix)))
+  )
+
 (defun ical2org/format-timestamp (dtstart dtend rrule)
   "Format as org time range. DTSTART and DTEND specifies start and end times. RRULE specifies repeat rules."
   (let* (
 
-         (start (ts-parse dtstart))
-         (end (ts-parse dtend))
+         (start (ical2org/parse-timestamp dtstart))
+         (end (ical2org/parse-timestamp dtend))
 
          (rules-alist (when rrule (--map (s-split "=" it) (s-split ";" rrule)) ))
 
@@ -190,10 +203,9 @@
          )
 
     (if days
-        (--reduce
-         (progn
-           (message (ical2org/format-event-timestamp (car it) (cdr it) nil))
-           (format "%s-%s" acc (ical2org/format-event-timestamp (car it) (cdr it) nil)) )
+        (--reduce-from
+         (format "%s%s" acc (ical2org/format-event-timestamp (car it) (cdr it) repeat-frequency) )
+         ""
          days)
       (ical2org/format-event-timestamp start end repeat-frequency)
       )
@@ -234,9 +246,10 @@
    nil
    ;; "FREQ=WEEKLY;UNTIL=20210319T080000Z;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR;WKST=SU"
    )
-  (message (ts-format (ts-parse "TZID=Romance Standard Time:20200622T090000") ))
+  (message (ts-format (ical2org/parse-timestamp "TZID=Romance Standard Time:20200622T090000") ))
   ;; (-map #'ical2org/import-calendar ical2org/calendars)
   )
+
 
 (provide 'ical2org)
 
