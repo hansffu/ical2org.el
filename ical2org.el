@@ -204,9 +204,12 @@
 
     (if days
         (--reduce-from
-         (format "%s%s" acc (ical2org/format-event-timestamp (car it) (cdr it) repeat-frequency) )
-         ""
-         days)
+         (format "%s%s" acc
+                 (ical2org/format-event-timestamp
+                  (car it)
+                  (cdr it)
+                  repeat-frequency))
+         "" days)
       (ical2org/format-event-timestamp start end repeat-frequency)
       )
 
