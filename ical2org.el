@@ -128,9 +128,12 @@
   (with-current-buffer
       (current-buffer)
     ;; (switch-to-buffer (current-buffer))
+    (message "Preparing iCalendar...")
+    (set-buffer (icalendar--get-unfolded-buffer (current-buffer)))
     (goto-char (point-min))
-    (--map (ical2org/parse-event (car it) (cdr it))
-           (ical2org/find-vevents))))
+    (message "Preparing iCalendar...done")
+    (icalendar--read-element nil nil)
+    ))
 
 (defun ical2org/clean-text (text)
   "Clean TEXT from escape characters and multiline strings."
@@ -184,12 +187,25 @@
          (make-ts :unix)))
   )
 
-(defun ical2org/format-timestamp (dtstart dtend rrule)
+(defsubst ical2org/decode-timestamp (datetime time-zone)
+  "Return new `ts' struct, parsing STRING with `iso8601-parse'."
+  (let ((parsed (icalendar--decode-isodatetime datetime nil time-zone)))
+    ;; Fill nil values
+    (cl-loop for i from 0 to 5
+             when (null (nth i parsed))
+             do (setf (nth i parsed) 0))
+    (->> parsed
+         (apply #'encode-time)
+         float-time
+         (make-ts :unix)))
+  )
+
+(defun ical2org/format-timestamp (start end rrule)
   "Format as org time range. DTSTART and DTEND specifies start and end times. RRULE specifies repeat rules."
   (let* (
 
-         (start (ical2org/parse-timestamp dtstart))
-         (end (ical2org/parse-timestamp dtend))
+         ;; (start (ical2org/parse-timestamp dtstart))
+         ;; (end (ical2org/parse-timestamp dtend))
 
          (rules-alist (when rrule (--map (s-split "=" it) (s-split ";" rrule)) ))
 
@@ -216,20 +232,70 @@
     )
   )
 
-(defun ical2org/write-event (event)
+(defun ical2org/write-event (event zone-map)
   "Write EVENT in org format."
-  (insert (format "* TODO %s\n" (ical2org/clean-text (ical2org/event-summary event) )))
-  (insert (format (ical2org/clean-text (ical2org/event-description event) )))
+  (let* (
+         (content (caddr event))
+         (keyword "TODO")
+         ;; (header (ical2org/clean-text (ical2org/event-summary event)))
+         ;; (description (ical2org/clean-text (ical2org/event-description event)))
+         ;; (summary (cdr (assoc 'SUMMARY content) ))
+
+         (description (icalendar--convert-string-for-import
+                       (or (icalendar--get-event-property event 'DESCRIPTION)
+                           "No description")))
+         (summary (icalendar--convert-string-for-import
+                   (or (icalendar--get-event-property event 'SUMMARY)
+                       "No summary")))
+
+
+         (dtstart (icalendar--get-event-property event 'DTSTART))
+         (dtstart-zone (icalendar--find-time-zone
+                        (icalendar--get-event-property-attributes event 'DTSTART)
+                        zone-map))
+         (dtstart-dec (ical2org/decode-timestamp dtstart dtstart-zone))
+         ;; (dtstart-dec (icalendar--decode-isodatetime dtstart nil dtstart-zone))
+
+
+         (dtend (icalendar--get-event-property event 'DTEND))
+         (dtend-zone (icalendar--find-time-zone
+                      (icalendar--get-event-property-attributes event 'DTEND)
+                      zone-map))
+         (dtend-dec (ical2org/decode-timestamp dtend dtend-zone))
+
+         )
+
+    (insert (format "\n* TODO %s\n" summary))
+    (insert (format "%s\n" description))
+
+    (insert (ical2org/format-timestamp dtstart-dec dtend-dec ""))
+    ;; (insert (format "dtstart %s\n" dtstart))
+    ;; (insert (format "cfstart-zone  %s\n" dtstart-zone))
+    ;; (insert (format "dtstart-dec) %s\n" (ts-format dtstart-dec )))
+    ;; (insert (format "start-d %s\n" start-d))
+
+
+    )
+
   )
 
-(defun ical2org/write-events (calendar events)
+(defun ical2org/write-events (calendar ical-list)
   "Write parsed EVENTS to org-file given in CALENDAR."
   (with-current-buffer
       (create-file-buffer (ical2org/calendar-org-file calendar))
     (org-mode)
-    (-map #'ical2org/write-event events)
+    (let ((events (icalendar--all-events ical-list))
 
-    (switch-to-buffer (current-buffer))))
+          (zone-map (icalendar--convert-all-timezones ical-list))
+          )
+
+      (message "'%s" events)
+      (--map (ical2org/write-event it zone-map) events)
+      )
+
+
+    (switch-to-buffer (current-buffer))
+    ))
 
 (defun ical2org/import-calendar (calendar)
   "Fetch calendars defined in CALENDAR."
@@ -243,14 +309,8 @@
 (defun ical2org/import ()
   "Fetch calendars defined in `ical2org/calendars'."
   (interactive)
-  (ical2org/format-timestamp
-   "20200924T150000Z"
-   "20200924T150000Z"
-   nil
-   ;; "FREQ=WEEKLY;UNTIL=20210319T080000Z;INTERVAL=1;BYDAY=MO,TU,WE,TH,FR;WKST=SU"
-   )
-  (message (ts-format (ical2org/parse-timestamp "TZID=Romance Standard Time:20200622T090000") ))
-  ;; (-map #'ical2org/import-calendar ical2org/calendars)
+
+  (-map #'ical2org/import-calendar ical2org/calendars)
   )
 
 

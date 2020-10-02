@@ -65,5 +65,13 @@
          (ts-format (car org-time-stamp-formats) result)
          :to-equal "<2020-09-29 Tue>")))
     )
+
+  (it "test"
+    (with-temp-buffer
+      (insert-file-contents "./calendar.ics")
+      (re-search-forward "^BEGIN:VCALENDAR\\s-*$" nil t)
+      (icalendar--read-element nil nil)
+      )
+    )
  
   )
