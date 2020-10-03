@@ -25,6 +25,7 @@
 (require 'org)
 (require 'ts)
 (require 'parse-time)
+(require 'icalendar)
 
 ;;;;;;;;;Configuration;;;;;;;;;;;
 (cl-defstruct ical2org/calendar
@@ -163,16 +164,23 @@
 
 (defun ical2org/format-event-timestamp (start end repeat-frequency)
   "Format event schedule from START to END with with REPEAT-FREQUENCY."
-  (if (ical2org/same-date-p start end)
-      (format "<%s %s-%s%s>"
-              (ts-format "%Y-%m-%d %a" start)
-              (ts-format "%H:%M" start)
-              (ts-format "%H:%M" end)
-              repeat-frequency)
-    (format "%s--%s"
-            (ts-format (cdr org-time-stamp-formats) start)
-            (ts-format (cdr org-time-stamp-formats) end)
-            )))
+  (cond ((not end)
+         (format "<%s %s %s>"
+                 (ts-format "%Y-%m-%d %a" start)
+                 (ts-format "%H:%M" start)
+                 (or repeat-frequency "")))
+
+        ((ical2org/same-date-p start end)
+         (format "<%s %s-%s%s>"
+                 (ts-format "%Y-%m-%d %a" start)
+                 (ts-format "%H:%M" start)
+                 (ts-format "%H:%M" end)
+                 (or repeat-frequency "")))
+
+        (t (format "%s--%s"
+                   (ts-format (cdr org-time-stamp-formats) start)
+                   (ts-format (cdr org-time-stamp-formats) end)
+                   ) )))
 
 (defsubst ical2org/parse-timestamp (string)
   "Return new `ts' struct, parsing STRING with `iso8601-parse'."
@@ -188,8 +196,9 @@
   )
 
 (defsubst ical2org/decode-timestamp (datetime time-zone)
-  "Return new `ts' struct, parsing STRING with `iso8601-parse'."
+  "Return new `ts' struct, parsing DATETIME with the given TIME-ZONE."
   (let ((parsed (icalendar--decode-isodatetime datetime nil time-zone)))
+
     ;; Fill nil values
     (cl-loop for i from 0 to 5
              when (null (nth i parsed))
@@ -201,7 +210,7 @@
   )
 
 (defun ical2org/format-timestamp (start end rrule)
-  "Format as org time range. DTSTART and DTEND specifies start and end times. RRULE specifies repeat rules."
+  "Format as org time range. START and END specifies start and end times. RRULE specifies repeat rules."
   (let* (
 
          ;; (start (ical2org/parse-timestamp dtstart))
@@ -233,14 +242,8 @@
   )
 
 (defun ical2org/write-event (event zone-map)
-  "Write EVENT in org format."
+  "Write EVENT in org format. Times are adjusted according to ZONE-MAP."
   (let* (
-         (content (caddr event))
-         (keyword "TODO")
-         ;; (header (ical2org/clean-text (ical2org/event-summary event)))
-         ;; (description (ical2org/clean-text (ical2org/event-description event)))
-         ;; (summary (cdr (assoc 'SUMMARY content) ))
-
          (description (icalendar--convert-string-for-import
                        (or (icalendar--get-event-property event 'DESCRIPTION)
                            "No description")))
@@ -248,53 +251,45 @@
                    (or (icalendar--get-event-property event 'SUMMARY)
                        "No summary")))
 
-
          (dtstart (icalendar--get-event-property event 'DTSTART))
          (dtstart-zone (icalendar--find-time-zone
                         (icalendar--get-event-property-attributes event 'DTSTART)
                         zone-map))
-         (dtstart-dec (ical2org/decode-timestamp dtstart dtstart-zone))
-         ;; (dtstart-dec (icalendar--decode-isodatetime dtstart nil dtstart-zone))
-
+         (dtstart-dec (when (and dtstart) (ical2org/decode-timestamp dtstart dtstart-zone) ))
 
          (dtend (icalendar--get-event-property event 'DTEND))
          (dtend-zone (icalendar--find-time-zone
                       (icalendar--get-event-property-attributes event 'DTEND)
                       zone-map))
-         (dtend-dec (ical2org/decode-timestamp dtend dtend-zone))
+         (dtend-dec (when (and dtend) (ical2org/decode-timestamp dtend dtend-zone) ))
+
+         (rrule (icalendar--get-event-property event 'RRULE))
 
          )
 
-    (insert (format "\n* TODO %s\n" summary))
+    (insert (format "\n* %s\n" summary))
+    (insert (format "SCHEDULED: %s\n" (ical2org/format-timestamp dtstart-dec dtend-dec rrule) ))
     (insert (format "%s\n" description))
-
-    (insert (ical2org/format-timestamp dtstart-dec dtend-dec ""))
-    ;; (insert (format "dtstart %s\n" dtstart))
-    ;; (insert (format "cfstart-zone  %s\n" dtstart-zone))
-    ;; (insert (format "dtstart-dec) %s\n" (ts-format dtstart-dec )))
-    ;; (insert (format "start-d %s\n" start-d))
-
 
     )
 
   )
 
 (defun ical2org/write-events (calendar ical-list)
-  "Write parsed EVENTS to org-file given in CALENDAR."
+  "Write parsed events in ICAL-LIST to org-file given in CALENDAR."
   (with-current-buffer
-      (create-file-buffer (ical2org/calendar-org-file calendar))
+        (or (find-buffer-visiting (ical2org/calendar-org-file calendar))
+                                (find-file (ical2org/calendar-org-file calendar)))
+    (erase-buffer)
+      ;; (create-file-buffer (ical2org/calendar-org-file calendar))
     (org-mode)
+
     (let ((events (icalendar--all-events ical-list))
+          (zone-map (icalendar--convert-all-timezones ical-list)))
 
-          (zone-map (icalendar--convert-all-timezones ical-list))
-          )
+      (--map (ical2org/write-event it zone-map) events))
 
-      (message "'%s" events)
-      (--map (ical2org/write-event it zone-map) events)
-      )
-
-
-    (switch-to-buffer (current-buffer))
+    (write-file (ical2org/calendar-org-file calendar))
     ))
 
 (defun ical2org/import-calendar (calendar)
