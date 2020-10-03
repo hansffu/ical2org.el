@@ -164,7 +164,7 @@
          )
 
     (insert (format "\n* %s\n" summary))
-    (insert (format "SCHEDULED: %s\n" (ical2org/format-timestamp dtstart-dec dtend-dec rrule) ))
+    (insert (format "%s\n" (ical2org/format-timestamp dtstart-dec dtend-dec rrule) ))
     (insert (format "%s\n" description))
 
     )
