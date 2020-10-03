@@ -49,11 +49,8 @@
   "Extract ical data from buffer."
   (with-current-buffer
       (current-buffer)
-    ;; (switch-to-buffer (current-buffer))
-    (message "Preparing iCalendar...")
     (set-buffer (icalendar--get-unfolded-buffer (current-buffer)))
     (goto-char (point-min))
-    (message "Preparing iCalendar...done")
     (icalendar--read-element nil nil)
     ))
 
@@ -153,20 +150,40 @@
                         (icalendar--get-event-property-attributes event 'DTSTART)
                         zone-map))
          (dtstart-dec (when (and dtstart) (ical2org/decode-timestamp dtstart dtstart-zone) ))
-
          (dtend (icalendar--get-event-property event 'DTEND))
          (dtend-zone (icalendar--find-time-zone
                       (icalendar--get-event-property-attributes event 'DTEND)
                       zone-map))
          (dtend-dec (when (and dtend) (ical2org/decode-timestamp dtend dtend-zone) ))
-
          (rrule (icalendar--get-event-property event 'RRULE))
+         (timestamp (format "%s\n" (ical2org/format-timestamp dtstart-dec dtend-dec rrule) ))
+
+         (status (or (icalendar--get-event-property event 'STATUS) "UNKNOWN"))
+
+         (attendees (icalendar--get-event-properties event 'ATTENDEE))
+         (attendees-formatted (if attendees
+                                  (--reduce (format "%s [[%s][%s]]" acc it (s-chop-prefix "mailto:" it))
+                                            attendees)
+                                ""))
+
+         (organizer  (icalendar--get-event-property event 'ORGANIZER) )
+         (organizer-props (icalendar--get-event-property-attributes event 'ORGANIZER))
+         (organizer-name (when organizer-props (cadr organizer-props)))
+         (organizer-formatted (if organizer
+                                  (format "[[%s][%s]]" organizer
+                                          (or organizer-name (s-chop-prefix "mailto:" organizer)))
+                                ""))
+         (location (or (icalendar--get-event-property event 'LOCATION) "" ))
          )
-
-    (insert (format "\n* %s\n" summary))
-    (insert (format "%s\n" (ical2org/format-timestamp dtstart-dec dtend-dec rrule) ))
-    (insert (format "%s\n" description))
-
+    (insert "* " summary ?\n
+            ":PROPERTIES:" ?\n
+            ":STATUS:" ?\s status ?\n
+            ":ORGANIZER:" ?\s organizer-formatted ?\n
+            ":ATTENDEES:" ?\s attendees-formatted ?\n
+            ":LOCATION:" ?\s location ?\n
+            ":END:"?\n
+            timestamp ?\n
+            description ?\n)
     )
 
   )
@@ -183,7 +200,7 @@
     (let ((events (icalendar--all-events ical-list))
           (zone-map (icalendar--convert-all-timezones ical-list)))
 
-      (--map (ical2org/write-event it zone-map) events))
+      (dolist (event events) (ical2org/write-event event zone-map)))
 
     (write-file (ical2org/calendar-org-file calendar))
     ))
