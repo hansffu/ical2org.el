@@ -175,7 +175,7 @@
   "Write parsed events in ICAL-LIST to org-file given in CALENDAR."
   (with-current-buffer
       (or (find-buffer-visiting (ical2org/calendar-org-file calendar))
-          (find-file (ical2org/calendar-org-file calendar)))
+          (create-file-buffer (ical2org/calendar-org-file calendar)))
     (erase-buffer)
 
     (org-mode)
