@@ -44,85 +44,6 @@
   :group 'ical2org)
 
 ;;;;;;;;;Implementation;;;;;;;;;;
-(cl-defstruct ical2org/event
-  summary
-  description
-  date
-  status
-  attendees
-  organizer
-  )
-
-
-(defun ical2org/read-line ()
-  "Return entire line as string."
-  (buffer-substring (line-beginning-position) (line-end-position)) )
-
-(defun ical2org/read-line-after (SEPARATOR)
-  "Read what comes after SEPARATOR on current line."
-  (save-excursion
-    (line-beginning-position)
-    (search-forward SEPARATOR)
-    (buffer-substring (point)(line-end-position))
-    )
-  )
-
-(defun ical2org/get-event-entry-value-location (KEY START END)
-  "Search within START and END locations for the specified KEY and return points for the value."
-  (save-excursion
-    (goto-char START)
-    (condition-case nil
-        (cons
-         (progn (search-forward KEY END)
-                (forward-char)
-                (point))
-         (progn (while (progn (forward-line) (beginning-of-line) (eq (char-after) 32) )
-                  (end-of-line))
-                (point)))
-      (error nil))
-    ))
-
-(defun printContent (RANGE)
-  (message (buffer-substring (car RANGE) (cdr RANGE))))
-
-(defun ical2org/parse-event (START END)
-  "Parse event entries between START and END points. Return struct `ical2org/event'."
-  (save-excursion
-    (let ((description (ical2org/get-event-entry-value-location "DESCRIPTION" START END))
-          (summary (ical2org/get-event-entry-value-location "SUMMARY" START END))
-          (start-time (ical2org/get-event-entry-value-location "DTSTART" START END))
-          (end-time (ical2org/get-event-entry-value-location "DTEND" START END))
-          )
-
-      (message (printContent summary))
-      (when start-time
-        (message "start: %s" (buffer-substring (car start-time) (cdr start-time))) )
-      (when end-time
-        (message "end: %s" (buffer-substring (car end-time) (cdr end-time))) )
-
-      (make-ical2org/event
-       :summary (buffer-substring (car summary) (cdr summary))
-       :description (buffer-substring (car description) (cdr description))))))
-
-(defun ical2org/next-vevent ()
-  "Returt start and end points for the next event in buffer."
-  (save-excursion
-    (condition-case nil
-        (cons (progn (search-forward "BEGIN:VEVENT") (beginning-of-line) (point) )
-              (progn (search-forward "END:VEVENT") (end-of-line) (point)))
-      (error nil)
-      )))
-
-(defun ical2org/find-vevents ()
-  "Returt start and end points for all events in buffer."
-  (save-excursion
-    (let ((events '())
-          (last-event (ical2org/next-vevent)))
-      (while last-event
-        (push last-event events)
-        (goto-char (cdr last-event))
-        (setq last-event (ical2org/next-vevent)))
-      events)))
 
 (defun ical2org/parse-buffer ()
   "Extract ical data from buffer."
@@ -135,13 +56,6 @@
     (message "Preparing iCalendar...done")
     (icalendar--read-element nil nil)
     ))
-
-(defun ical2org/clean-text (text)
-  "Clean TEXT from escape characters and multiline strings."
-  (s-replace-all '(("\n " . "")
-                   ("\\n" . "\n")
-                   ("\\," . ","))
-                 text))
 
 (defun ical2org/get-next-by-dow (current dow)
   "Find next date after CURRENT wher day of week is DOW."
@@ -182,19 +96,6 @@
                    (ts-format (cdr org-time-stamp-formats) end)
                    ) )))
 
-(defsubst ical2org/parse-timestamp (string)
-  "Return new `ts' struct, parsing STRING with `iso8601-parse'."
-  (let ((parsed (iso8601-parse string)))
-    ;; Fill nil values
-    (cl-loop for i from 0 to 5
-             when (null (nth i parsed))
-             do (setf (nth i parsed) 0))
-    (->> parsed
-         (apply #'encode-time)
-         float-time
-         (make-ts :unix)))
-  )
-
 (defsubst ical2org/decode-timestamp (datetime time-zone)
   "Return new `ts' struct, parsing DATETIME with the given TIME-ZONE."
   (let ((parsed (icalendar--decode-isodatetime datetime nil time-zone)))
@@ -212,10 +113,6 @@
 (defun ical2org/format-timestamp (start end rrule)
   "Format as org time range. START and END specifies start and end times. RRULE specifies repeat rules."
   (let* (
-
-         ;; (start (ical2org/parse-timestamp dtstart))
-         ;; (end (ical2org/parse-timestamp dtend))
-
          (rules-alist (when rrule (--map (s-split "=" it) (s-split ";" rrule)) ))
 
          (frequency (when rules-alist (assoc "FREQ" rules-alist)))
@@ -264,7 +161,6 @@
          (dtend-dec (when (and dtend) (ical2org/decode-timestamp dtend dtend-zone) ))
 
          (rrule (icalendar--get-event-property event 'RRULE))
-
          )
 
     (insert (format "\n* %s\n" summary))
@@ -278,10 +174,10 @@
 (defun ical2org/write-events (calendar ical-list)
   "Write parsed events in ICAL-LIST to org-file given in CALENDAR."
   (with-current-buffer
-        (or (find-buffer-visiting (ical2org/calendar-org-file calendar))
-                                (find-file (ical2org/calendar-org-file calendar)))
+      (or (find-buffer-visiting (ical2org/calendar-org-file calendar))
+          (find-file (ical2org/calendar-org-file calendar)))
     (erase-buffer)
-      ;; (create-file-buffer (ical2org/calendar-org-file calendar))
+
     (org-mode)
 
     (let ((events (icalendar--all-events ical-list))

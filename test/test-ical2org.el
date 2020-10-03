@@ -4,13 +4,26 @@
 (require 'ical2org)
 (require 'ts)
 
+(defsubst parse-timestamp (string)
+  "Return new `ts' struct, parsing STRING with `iso8601-parse'."
+  (let ((parsed (iso8601-parse string)))
+    ;; Fill nil values
+    (cl-loop for i from 0 to 5
+             when (null (nth i parsed))
+             do (setf (nth i parsed) 0))
+    (->> parsed
+         (apply #'encode-time)
+         float-time
+         (make-ts :unix)))
+  )
+
 (describe "ical2org"
   (describe "format-timestamp"
     (it "It should return time range when start and end date is same day"
       (expect
        (ical2org/format-timestamp
-        "20200924T140000Z"
-        "20200924T141500Z"
+        (parse-timestamp "20200924T140000Z" )
+        (parse-timestamp "20200924T141500Z")
         nil
         )
        :to-equal "<2020-09-24 Thu 16:00-16:15>")
@@ -18,8 +31,8 @@
     (it "It should return date range when start and end date is different days"
       (expect
        (ical2org/format-timestamp
-        "20200924T140000Z"
-        "20200925T141500Z"
+        (parse-timestamp "20200924T140000Z")
+        (parse-timestamp "20200925T141500Z")
         nil
         )
        :to-equal "<2020-09-24 Thu 16:00>--<2020-09-25 Fri 16:15>")
@@ -27,8 +40,8 @@
     (it "It should add +1w if frequency is weekly"
       (expect
        (ical2org/format-timestamp
-        "20200924T140000Z"
-        "20200924T141500Z"
+        (parse-timestamp "20200924T140000Z")
+        (parse-timestamp "20200924T141500Z")
         ";FREQ=WEEKLY"
         )
        :to-equal "<2020-09-24 Thu 16:00-16:15 +1w>")
@@ -36,8 +49,8 @@
     (it "should repeat every day defined in byday"
       (expect
        (ical2org/format-timestamp
-        "20200924T140000Z"
-        "20200924T141500Z"
+        (parse-timestamp "20200924T140000Z")
+        (parse-timestamp "20200924T141500Z")
         ";FREQ=WEEKLY;BYDAY=MO,WE,TH,SU"
         )
        :to-equal
@@ -65,13 +78,4 @@
          (ts-format (car org-time-stamp-formats) result)
          :to-equal "<2020-09-29 Tue>")))
     )
-
-  (it "test"
-    (with-temp-buffer
-      (insert-file-contents "./calendar.ics")
-      (re-search-forward "^BEGIN:VCALENDAR\\s-*$" nil t)
-      (icalendar--read-element nil nil)
-      )
-    )
- 
   )
