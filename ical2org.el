@@ -28,12 +28,6 @@
 (require 'icalendar)
 
 ;;;;;;;;;Configuration;;;;;;;;;;;
-(cl-defstruct ical2org/calendar
-  name
-  url
-  org-file
-  )
-
 
 (defvar ical2org/calendars '()
   "List of calendars to be imported.")
@@ -186,8 +180,8 @@
 (defun ical2org/write-events (calendar ical-list)
   "Write parsed events in ICAL-LIST to org-file given in CALENDAR."
   (with-current-buffer
-      (or (find-buffer-visiting (ical2org/calendar-org-file calendar))
-          (create-file-buffer (ical2org/calendar-org-file calendar)))
+      (or (find-buffer-visiting (plist-get calendar :org-file))
+          (create-file-buffer (plist-get calendar :org-file)))
     (erase-buffer)
 
     (org-mode)
@@ -195,20 +189,20 @@
     (let ((events (icalendar--all-events ical-list))
           (zone-map (icalendar--convert-all-timezones ical-list)))
       (insert "*" ?\s
-              (ical2org/calendar-name calendar)
+              (plist-get calendar :name)
               ?\s
-              ":" (ical2org/calendar-name calendar) ":"
+              ":" (plist-get calendar :name) ":"
               ?\n)
       (dolist (event events) (ical2org/write-event event zone-map)))
 
-    (write-file (ical2org/calendar-org-file calendar))
+    (write-file (plist-get calendar :org-file))
     ))
 
 (defun ical2org/import-calendar (calendar)
   "Fetch calendars defined in CALENDAR."
   (let* ((events (with-temp-buffer
                    (url-insert-file-contents
-                    (ical2org/calendar-url calendar))
+                    (plist-get calendar :url))
                    (ical2org/parse-buffer))
                  ))
     (ical2org/write-events calendar events)))
