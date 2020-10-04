@@ -1,0 +1,19 @@
+#+TITLE: ical2org.el
+
+This library builds upon icalendar.el to get your calendar events into org mode.
+
+* Config
+You can define calendars to be imported like this:
+#+BEGIN_SRC elisp
+(setq ical2org/calendars (list
+                          (make-ical2org/calendar
+                           :name "Personal calendar"
+                           :org-file "/path/to/org/file"
+                           :url "secret url to personal calendar")
+                          (make-ical2org/calendar
+                           :name "Work calendar"
+                           :org-file "/path/to/org/file"
+                           :url "secret url to work calendar")
+                          ))
+#+END_SRC
+Note that the org file will be overwritten.

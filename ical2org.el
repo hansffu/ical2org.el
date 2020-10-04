@@ -34,14 +34,9 @@
   org-file
   )
 
-(defgroup ical2org nil
-  "Settings for `ical2org'."
-  :group 'org)
 
-(defcustom ical2org/calendars nil
-  "List of calendars to be imported."
-  :type 'list
-  :group 'ical2org)
+(defvar ical2org/calendars '()
+  "List of calendars to be imported.")
 
 ;;;;;;;;;Implementation;;;;;;;;;;
 
@@ -175,7 +170,7 @@
                                 ""))
          (location (or (icalendar--get-event-property event 'LOCATION) "" ))
          )
-    (insert "* " summary ?\n
+    (insert "** " summary ?\n
             ":PROPERTIES:" ?\n
             ":STATUS:" ?\s status ?\n
             ":ORGANIZER:" ?\s organizer-formatted ?\n
@@ -199,7 +194,11 @@
 
     (let ((events (icalendar--all-events ical-list))
           (zone-map (icalendar--convert-all-timezones ical-list)))
-
+      (insert "*" ?\s
+              (ical2org/calendar-name calendar)
+              ?\s
+              ":" (ical2org/calendar-name calendar) ":"
+              ?\n)
       (dolist (event events) (ical2org/write-event event zone-map)))
 
     (write-file (ical2org/calendar-org-file calendar))
