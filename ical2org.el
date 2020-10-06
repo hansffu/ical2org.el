@@ -102,7 +102,15 @@
          (rules-alist (when rrule (--map (s-split "=" it) (s-split ";" rrule)) ))
 
          (frequency (when rules-alist (assoc "FREQ" rules-alist)))
-         (repeat-frequency (if (s-equals? "WEEKLY" (cadr frequency)) " +1w" ""))
+         (interval (when rules-alist (assoc "INTERVAL" rules-alist)))
+         (repeat-frequency (if (and frequency interval)
+                               (format " +%s%s"
+                                       (cadr interval)
+                                       (pcase (cadr frequency)
+                                         ("WEEKLY" "w")
+                                         ("DAILY" "d")
+                                         ))
+                             ""))
 
          (byday (when rules-alist (assoc "BYDAY" rules-alist)))
          (days (when byday  (--map (cons (ical2org/get-next-by-dow start it)
