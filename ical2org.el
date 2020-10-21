@@ -45,15 +45,19 @@
 
 (defun ical2org/get-next-by-dow (current dow)
   "Find next date after CURRENT wher day of week is DOW."
-  (let* ((cur-dow (ts-dow current))
-         (dow-num (pcase dow
-                    ("MO" 1) ("TU" 2) ("WE" 3) ("TH" 4)
-                    ("FR" 5) ("SA" 6) ("SU" 7))))
-    (ts-inc 'day
-            (if (> cur-dow dow-num)
-                (+ 7 (- dow-num cur-dow))
-              (- dow-num cur-dow))
-            current)))
+  (if (or (s-contains? "-" dow) (s-contains? "+" dow) )
+      (progn
+        (message "WARNING: Relative days (+WE, -MO etc) is not yet supported")
+        nil)
+    (let* ((cur-dow (ts-dow current))
+           (dow-num (pcase dow
+                      ("MO" 1) ("TU" 2) ("WE" 3) ("TH" 4)
+                      ("FR" 5) ("SA" 6) ("SU" 7))))
+      (ts-inc 'day
+              (if (> cur-dow dow-num)
+                  (+ 7 (- dow-num cur-dow))
+                (- dow-num cur-dow))
+              current))))
 
 (defun ical2org/same-date-p (d1 d2)
   "Check if D1 and D2 is the same date."
