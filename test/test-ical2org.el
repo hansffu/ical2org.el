@@ -26,7 +26,7 @@
         (parse-timestamp "20200924T141500Z")
         nil
         )
-       :to-equal "<2020-09-24 Thu 16:00-16:15>")
+       :to-equal "<2020-09-24 Thu>")
       )
     (it "It should return date range when start and end date is different days"
       (expect
@@ -44,7 +44,7 @@
         (parse-timestamp "20200924T141500Z")
         ";FREQ=WEEKLY"
         )
-       :to-equal "<2020-09-24 Thu 16:00-16:15 +1w>")
+       :to-equal "<2020-09-24 Thu +1w>")
       )
     (it "should repeat every day defined in byday"
       (expect
@@ -54,7 +54,17 @@
         ";FREQ=WEEKLY;BYDAY=MO,WE,TH,SU"
         )
        :to-equal
-       "<2020-09-28 Mon 16:00-16:15 +1w><2020-09-30 Wed 16:00-16:15 +1w><2020-09-24 Thu 16:00-16:15 +1w><2020-09-27 Sun 16:00-16:15 +1w>")
+       "<2020-09-28 Mon +1w><2020-09-30 Wed +1w><2020-09-24 Thu +1w><2020-09-27 Sun +1w>")
+      )
+    (it "should repeat every last wednesday of next month when byday is '-1WE'"
+      (expect
+       (ical2org/format-timestamp
+        (parse-timestamp "20201028T140000Z")
+        (parse-timestamp "20201028T141500Z")
+        ";FREQ=MONTHLY;BYDAY=-1WE"
+        )
+       :to-equal
+       "<%%(diary-float t 3 -1)>")
       )
     )
 

@@ -69,13 +69,13 @@
 (defun ical2org/format-event-timestamp (start end repeat-frequency)
   "Format event schedule from START to END with with REPEAT-FREQUENCY."
   (cond ((not end)
-         (format "<%s %s>"
+         (format "<%s%s>"
                  (ts-format "%Y-%m-%d %a" start)
                  ;; (ts-format "%H:%M" start)
                  (or repeat-frequency "")))
 
         ((ical2org/same-date-p start end)
-         (format "<%s %s>"
+         (format "<%s%s>"
                  (ts-format "%Y-%m-%d %a" start)
                  ;; (ts-format "%H:%M" start)
                  ;; (ts-format "%H:%M" end)
@@ -113,9 +113,9 @@
 
          (frequency (when rules-alist (assoc "FREQ" rules-alist)))
          (interval (when rules-alist (assoc "INTERVAL" rules-alist)))
-         (repeat-frequency (if (and frequency interval)
+         (repeat-frequency (if  frequency
                                (format " +%s%s"
-                                       (cadr interval)
+                                       (if interval (cadr interval) 1 )
                                        (pcase (cadr frequency)
                                          ("WEEKLY" "w")
                                          ("DAILY" "d")
