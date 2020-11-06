@@ -69,16 +69,16 @@
 (defun ical2org/format-event-timestamp (start end repeat-frequency)
   "Format event schedule from START to END with with REPEAT-FREQUENCY."
   (cond ((not end)
-         (format "<%s %s %s>"
+         (format "<%s %s>"
                  (ts-format "%Y-%m-%d %a" start)
-                 (ts-format "%H:%M" start)
+                 ;; (ts-format "%H:%M" start)
                  (or repeat-frequency "")))
 
         ((ical2org/same-date-p start end)
-         (format "<%s %s-%s%s>"
+         (format "<%s %s>"
                  (ts-format "%Y-%m-%d %a" start)
-                 (ts-format "%H:%M" start)
-                 (ts-format "%H:%M" end)
+                 ;; (ts-format "%H:%M" start)
+                 ;; (ts-format "%H:%M" end)
                  (or repeat-frequency "")))
 
         (t (format "%s--%s"
@@ -100,6 +100,12 @@
          (make-ts :unix)))
   )
 
+(defun ical2org/dayname-to-diary-num (dayname)
+  (pcase dayname
+    ("MO" 1) ("TU" 2) ("WE" 3) ("TH" 4)
+    ("FR" 5) ("SA" 6) ("SU" 0)
+    ))
+
 (defun ical2org/format-timestamp (start end rrule)
   "Format as org time range. START and END specifies start and end times. RRULE specifies repeat rules."
   (let* (
@@ -117,21 +123,26 @@
                              ""))
 
          (byday (when rules-alist (assoc "BYDAY" rules-alist)))
-         (days (when byday  (--map (cons (ical2org/get-next-by-dow start it)
-                                         (ical2org/get-next-by-dow end it))
+         (days (when byday  (--map (if (s-contains-p "-" it)
+                                       (cons (s-left 2 it) (s-right 2 it))
+                                     (cons (ical2org/get-next-by-dow start it)
+                                           (ical2org/get-next-by-dow end it)) )
                                    (s-split "," (cadr byday) ) )))
          )
 
-    (if days
-        (--reduce-from
-         (format "%s%s" acc
-                 (ical2org/format-event-timestamp
-                  (car it)
-                  (cdr it)
-                  repeat-frequency))
-         "" days)
-      (ical2org/format-event-timestamp start end repeat-frequency)
-      )
+    (cond
+     ;; ((and byday (s-contains? "-" (cadr byday)) ) "<%%(diary-float t 3 -1)>")
+     (days (--reduce-from
+            (if (stringp (car it))
+                (format "<%%%%(diary-float t %s %s)>" (ical2org/dayname-to-diary-num (cdr it)) (car it))
+              (format "%s%s" acc
+                      (ical2org/format-event-timestamp
+                       (car it)
+                       (cdr it)
+                       repeat-frequency)) )
+            "" days))
+     (t (ical2org/format-event-timestamp start end repeat-frequency) )
+     )
 
     )
   )
@@ -157,7 +168,8 @@
                       zone-map))
          (dtend-dec (when (and dtend) (ical2org/decode-timestamp dtend dtend-zone) ))
          (rrule (icalendar--get-event-property event 'RRULE))
-         (timestamp (format "%s\n" (ical2org/format-timestamp dtstart-dec dtend-dec rrule) ))
+         (date (format "%s\n" (ical2org/format-timestamp dtstart-dec dtend-dec rrule) ))
+         (time (format "%s-%s" (ts-format "%H:%M" dtstart-dec) (ts-format "%H:%M" dtend-dec)))
 
          (status (or (icalendar--get-event-property event 'STATUS) "UNKNOWN"))
 
@@ -176,14 +188,14 @@
                                 ""))
          (location (or (icalendar--get-event-property event 'LOCATION) "" ))
          )
-    (insert "** " summary ?\n
+    (insert "** " time ?\s summary ?\n
             ":PROPERTIES:" ?\n
             ":STATUS:" ?\s status ?\n
             ":ORGANIZER:" ?\s organizer-formatted ?\n
             ":ATTENDEES:" ?\s attendees-formatted ?\n
             ":LOCATION:" ?\s location ?\n
             ":END:"?\n
-            timestamp ?\n
+            date ?\n
             description ?\n)
     )
 
