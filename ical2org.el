@@ -194,7 +194,7 @@
             ":ORGANIZER:" ?\s organizer-formatted ?\n
             ":ATTENDEES:" ?\s attendees-formatted ?\n
             ":LOCATION:" ?\s location ?\n
-            ":WILD_NOTIFIER_NOTIFY_BEFORE: 1" ?\n
+            ":WILD_NOTIFIER_NOTIFY_BEFORE: 5 1" ?\n
             ":END:"?\n
             date ?\n
             description ?\n)
